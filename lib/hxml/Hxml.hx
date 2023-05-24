@@ -10,7 +10,7 @@ import ansi.colors.Style;
 
 import hxml.ds.*;
 
-using tools.Strings;
+using sn.Strings;
 using StringTools;
 
 private inline var NAME : String = "hxml";

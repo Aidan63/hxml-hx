@@ -2,7 +2,7 @@ package hxml;
 
 import tracer.Debug.debug;
 
-using tools.Strings;
+using sn.Strings;
 using StringTools;
 
 private enum Mode {
