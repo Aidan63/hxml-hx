@@ -54,7 +54,7 @@ class Hxml {
 		debug('parsing ${paint(hxml.file,Green)}', NAME);
 
 		var mode : Mode = Global;
-		var lines = tools.Fs.contentLines(hxml.file);
+		var lines = sn.Fs.contentLines(hxml.file);
 		for (lineNo in 0 ... lines.length) {
 			var line = lines[lineNo].trim();
 
