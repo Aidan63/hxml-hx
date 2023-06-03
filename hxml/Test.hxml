@@ -1,0 +1,28 @@
+-lib utest
+
+-cp lib
+-cp test/src
+
+-main Test
+-D no-deprecation-warnings
+--each
+
+--interp
+--next
+
+-lib result
+--interp
+--next
+
+#-lib ansi
+#--interp
+#--next
+
+-lib error
+--interp
+--next
+
+-lib error
+-lib result
+--interp
+--next

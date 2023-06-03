@@ -1,0 +1,18 @@
+# example taken from the haxe website
+--class-path src
+--dce full
+
+--each
+
+--js bin/homepage.js
+--main website.HomePage
+
+--next
+
+--js bin/gallery.js
+--main website.GalleryPage
+
+--next
+
+--js bin/contact.js
+--main website.ContactPage

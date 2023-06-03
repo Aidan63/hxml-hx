@@ -1,8 +1,10 @@
 {
 	"name": "hxml",
-	"version": "0.0.0",
-	"classPath": "lib/",
+	"description": "A library for reading and manipulating haxe HXML files",
+	"version": "0.1.0",
+	"classPath": "lib",
+	"releaseNotes": "initial versioned release",
 	"dependencies": {
-		"sn": ""
+
 	}
 }

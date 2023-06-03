@@ -1,95 +1,224 @@
 package hxml;
 
-import tracer.Debug.debug;
+import hxml.ds.BuildSet;
+import hxml.ds.Line;
 
-using sn.Strings;
 using StringTools;
 
-private enum Mode {
-	Each;
-	Next;
-}
-
-private var NAME : String = "hxml/parser";
-
-/**
-	* a parser for hxml files
-	*
-	*/
 class Parser {
 
-	public static function parse(path : String, ?cwd : String) {
-		var hxml = new Hxml();
-		
-		hxml.load(path, cwd);
+	/////////////////////////////////////////
 
-		//var hxml = makeHxml(path, cwd);
-		// trace("\n" + hxml.commandString());
-		trace("\n" + hxml.buildFile());
+	private var text : String;
+	private var cursor : Int = 0;
+
+	private var source : String;
+	private var line : Int = 0;
+	private var lineStartPos : Int = 0;
+
+	// a switch to increment the new line start position variable
+	// used for tracing, errors, and debug
+	private var newLine : Bool = false;
+
+	/////////////////////////////////////////
+
+	private function new(content : String) {
+		this.text = content;
 	}
 
-	private static function makeHxml(path : String, ?cwd : String) : hxml.Hxml {
-		debug('parsing ${ansi.Paint.paint(path,Green)}', NAME);
+	private function nextLine() : Null<Return<Line>> {
+		var char;
+		var working : String = "";
+		// we are calling the command the line in the hxml file.
+		// the command would be the first part, which dictates what
+		// the compiler will do / modify
+		var command : String = "";
 
-		if (cwd == null) cwd = Sys.getCwd();
-		var fullPath = haxe.io.Path.join([cwd, path]);
+		while ((char = text.charAt(cursor++)) != "") {
 
-		var hxml = new hxml.Hxml();
-		var mode : Mode = Each;
+			if (newLine) {
+				// need to subtract 1 because we added one in the while loop
+				lineStartPos = cursor-1;
+				newLine = false;
+			}
 
-		for (l in lines(fullPath)) {
-			var line = l.trim();
+			switch(char) {
+				case "#":
+					// We are not doing anything with the comments now, so just
+					// consume up to the end of the line and throw them away.
+					while ((char = text.charAt(cursor++)) != "\n" && char != "\r") { }
+					cursor -= 1;
 
-			// this is a comment, nothing to note here
-			if (line.substring(0,1) == "#") continue;
-			// this is a command or something.
-			else if (line.substring(0,1) == "-") {
-				if (line == "--next") {
-					trace('next');
-					hxml.newRun();
-					mode = Next;
-				} else if (line == "--each") mode = Each;
-				else {
-					debug('adding "${ansi.Paint.paint(line,Green)}" to $mode', NAME);
-					switch (mode) {
-						case Next: hxml.addToRun(line);
-						case Each: hxml.addToGlobal(line);
+					// Here to catch if this comment was on a line with a command
+					// not sure if that is supported in the official hxml format,
+					// but we are going to support it here.
+					if (working.length != 0 || command.length != 0)
+						return makeEParse(hxml.ds.Line.parse(command, working));
+
+				case " ":
+					if (command.length == 0) {
+						command = working;
+						working = "";
+					} else {
+						working += char;
 					}
-				}
-			}
-			// lastly then this must be some kind of hxml file
-			else if (line.length > 0) {
-				debug('requested from ${ansi.Paint.paint(path,Green)} in $mode', NAME);
-				var newhxml = makeHxml(line, cwd);
-				var instructions = newhxml.resolve();
-				if(instructions.length > 1) {
-					hxml.newRun();
-					for (i in instructions) hxml.addToRun( ... i);
-				}
-				else if (hxml.commands() == 1) for (i in instructions) hxml.addToGlobal( ... i);
 
-				/*
-					switch (mode) {
-					case Next:
-						for (i in newhxml.resolve()) hxml.addToRun(... i);
+				case "\n" | "\r":
+					// because sometime we have both of these, so we are 
+					// only going to count \n
+					if (char == "\n") {
+						line += 1;
+						newLine = true;
+					}
+
+					// check so we can have empty lines
+					if (working.length != 0 || command.length != 0)
+						return makeEParse(hxml.ds.Line.parse(command, working));
+
+				case _:
+					working += char;
+			}
+		}
+
+		// Catches the tailing command
+		if (working.length != 0 || command.length != 0)
+			return makeEParse(hxml.ds.Line.parse(command, working));
+
+		return null;
+	}
+
+	///////////////////////////////////////////////////
+
+	inline private function getTraceInfo() : hxml.ds.SourceInfo {
+		return {
+			file: source, line: line,
+			text: text.substring(lineStartPos, cursor).trim(),
+			pos: cursor - lineStartPos,
+		}
+	}
+
+#if (result && error)
+
+	inline private function makeEParse<T>(r : result.Result<T, Array<String>>) : result.Result<T, error.Error> {
+		switch(r) {
+			case Error(params):
+				return Error(new hxml.errors.EParse(params[0], params[1], getTraceInfo(), params[2]));
+			case Ok(value):
+				return Ok(value);
+		}
+	}
+
+#elseif result
+
+	inline private function makeEParse<T>(r : result.Result<T, Array<String>>) : result.Result<T, String> {
+		switch(r) {
+			case Error(params):
+				return Error('error parsing ${params[0]} ${params[1]}: ${params[2]}');
+			case Ok(value):
+				return Ok(value);
+		}
+	}
+
+#else
+
+	inline private function makeEParse<T>(t:T):T {
+		return t;
+	}
+
+#end
+
+	///////////////////////////////////////////////////
+
+	static public function parse(content : String, ?source : String) : Return<Array<BuildSet>> {
+		var parser = new Parser(content);
+		parser.source = source;
+
+		var globals : Array<Line> = [];
+		var current : Array<Line> = [];
+		var sets : Array<BuildSet> = [];
+
+		var line;
+		while ((line = parser.nextLine()) != null) {
+
+#if result
+			var line = switch(line) {
+				case Error(e): return Error(e);
+				case Ok(line): line;
+			}
+#end
+
+				switch(line) {
 					case Each:
-						for (i in newhxml.resolve()) hxml.addToGlobal(... i);
-				}*/
-				//hxml.buildFile();
+						if (globals.length > 0) {
+							var message = 'Cannot have more than 1 "--each" in an hxml file';
+							#if error
+								var error = new hxml.errors.ESyntax(parser.getTraceInfo(), message);
+							#else
+								var error = message;
+							#end
+							return Return.Err(error);
+						}
+
+						globals = current;
+						current = [];
+
+					case Next:
+						addToSet(sets, globals, current, source);
+						current = [];
+
+					case HxmlFile(path):
+						var subFile = hxml.Hxml.load(path);
+
+#if result
+						var subFile = switch(subFile) {
+							case Error(e): return Error(e);
+							case Ok(subfile): subfile;
+						}
+#end
+
+						// TODO: what was this error for again? why was this a problem? write a blurb
+						if (subFile.sets.length != 1) {
+							var message = 'I do not know how to parse a file with {subFile.sets.length} different sets';
+							#if error
+								var error = new hxml.errors.ESyntax(parser.getTraceInfo(), message);
+							#else
+								var error = message;
+							#end
+						}
+
+						for (command in subFile.sets[0].lines)
+							current.push(command);
+
+					case _:
+						current.push(line);
+
 			}
-
-		}
-		return hxml;
-	}
-
-	private static function lines(path : String) : Array<String> {
-		if (!sys.FileSystem.exists(path)) {
-			debug('${ansi.Paint.paint(path, Cyan)} does not exist, ${ansi.Paint.paint("skipping", Yellow)}');
-			return [ ];
 		}
 
-		var contents = sys.io.File.getContent(path);
-		return contents.lines();
+		// catches the last set.
+		if (current.length > 0)
+			addToSet(sets, globals, current, source);
+
+		return Return.Ok(sets);
 	}
 
+	///////////////////////////////////////////////////
+
+	/**
+	 * Helper wrapper that cleans up the code. Adds global variable (if exists)
+	 * to the beginning of the current set lines. The adds to the set. Used in 
+	 * buildSet construction.
+	 */
+	inline static private function addToSet(sets : Array<BuildSet>, globals : Array<Line>, current : Array<Line>, source : String) {
+		for (g in 0 ... globals.length)
+			current.unshift(globals[globals.length - 1 - g]);
+
+		sets.push({
+			lines: current,
+			source: source,
+			index: sets.length + 1,
+		});
+	}
+
+	///////////////////////////////////////////////////
 }

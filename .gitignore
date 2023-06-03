@@ -1,0 +1,11 @@
+.haxe
+.haxelib
+.neko
+.hl
+.envrc
+
+dump
+bin
+build.hxml
+*.n
+*.hl

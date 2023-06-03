@@ -1,0 +1,6 @@
+[submodule ".haxelib/ansi/git"]
+	path = .haxelib/ansi/git
+	url = git@github.com:snsvrno/ansi-hx.git
+[submodule ".haxelib/error/git"]
+	path = .haxelib/error/git
+	url = git@github.com:snsvrno/error-hx.git
