@@ -46,7 +46,7 @@ class Parser {
 				case "#":
 					// We are not doing anything with the comments now, so just
 					// consume up to the end of the line and throw them away.
-					while ((char = text.charAt(cursor++)) != "\n" && char != "\r") { }
+					while ((char = text.charAt(cursor++)) != "\n" && char != "\r" && char != "") { }
 					cursor -= 1;
 
 					// Here to catch if this comment was on a line with a command

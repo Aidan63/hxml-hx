@@ -68,6 +68,17 @@ class TestParser extends utest.Test {
 			assertLineEq(Line.Command("--js", "bin/contact.js"), hxml.sets[2].lines[2]);
 			assertLineEq(Line.Command("--main", "website.ContactPage"), hxml.sets[2].lines[3]);
 		}
+
+		function testTrailingComment() {
+
+			var hxml = load("test/test-files/TrailingComment.hxml");
+
+			Assert.equals(1, hxml.sets.length);
+			assertLineEq(Line.Command("--class-path", "src"), hxml.sets[0].lines[0]);
+			assertLineEq(Line.Command("--dce", "full"), hxml.sets[0].lines[1]);
+			assertLineEq(Line.Command("--js", "bin/homepage.js"), hxml.sets[0].lines[2]);
+			assertLineEq(Line.Command("--main", "website.HomePage"), hxml.sets[0].lines[3]);
+		}
 }
 
 inline function assertLineEq(a : Line, b : Line) {

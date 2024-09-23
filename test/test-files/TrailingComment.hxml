@@ -1,0 +1,6 @@
+# example taken from the haxe website
+--class-path src
+--dce full
+--js bin/homepage.js
+--main website.HomePage
+# trailing comment
